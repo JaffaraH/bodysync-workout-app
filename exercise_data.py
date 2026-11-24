@@ -169,7 +169,7 @@ def _local_image(rel_path):
 
 def static_url(path):
     """Browser URL for a file under ./static (served by Streamlit, cached by the browser)."""
-    return "/app/static/" + str(path).split("/static/", 1)[1]
+    return "app/static/" + str(path).split("/static/", 1)[1]
 
 
 def _ease(t):

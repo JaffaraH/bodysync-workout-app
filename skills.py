@@ -104,7 +104,7 @@ def _show_media(m):
         return
     kind, val = m
     if kind == "url" and val.endswith(".mp4"):
-        st.video(val.replace("/app/static/", "static/"), loop=True, muted=True, autoplay=True)
+        st.video(val.replace("app/static/", "static/"), loop=True, muted=True, autoplay=True)
     elif kind == "url":
         ui.demo(val)
     else:

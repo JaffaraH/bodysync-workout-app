@@ -46,7 +46,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] { border: none !important; borde
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] { border-radius: 10px; padding-block: .35rem; }
 
 /* logo = a real, clickable vector that takes you Home */
-.st-key-logo_home button { background: url("/app/static/logo.svg") left center / contain no-repeat !important;
+.st-key-logo_home button { background: url("app/static/logo.svg") left center / contain no-repeat !important;
   border: none !important; box-shadow: none !important; height: 46px; min-height: 46px; width: 178px; padding: 0;
   margin: .25rem 0 .5rem; opacity: .95; transition: opacity .15s ease, transform .15s ease; }
 .st-key-logo_home button:hover { opacity: 1; transform: scale(1.03); background-color: transparent !important; }
@@ -191,7 +191,7 @@ def demo(path_or_url, max_h="46vh"):
     if not path_or_url:
         return
     url = str(path_or_url)
-    if not url.startswith(("/app/", "http", "data:")):  # a file under ./static: serve it as-is
+    if not url.startswith(("app/", "/app/", "http", "data:")):  # a file under ./static: serve it as-is
         from exercise_data import static_url
         url = static_url(url)
     st.html(f'<img src="{html.escape(url)}" alt="" style="width:100%;max-height:{max_h};object-fit:contain;'
@@ -530,7 +530,7 @@ def stream_into_chat(generator, placeholder_text="Thinking..."):
             waiting.empty()
 
 
-ART = "/app/static/illustrations/"
+ART = "app/static/illustrations/"
 ART_CREDIT = ("Illustrations by [pikisuperstar](https://www.magnific.com/author/pikisuperstar), "
               "[redgreystock](https://www.magnific.com/author/redgreystock) and "
               "[macrovector](https://www.magnific.com/author/macrovector) on Magnific")

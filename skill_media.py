@@ -19,7 +19,7 @@ def clip(step):
     """URL of a hand-picked clip for this step, or None."""
     for ext in EXTS:
         if (SKILLS_DIR / f"{step['id']}{ext}").exists():
-            return f"/app/static/skills/{step['id']}{ext}"
+            return f"app/static/skills/{step['id']}{ext}"
     return None
 
 

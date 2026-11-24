@@ -194,7 +194,7 @@ def _side(current, answers, kicker="Your first week"):
         ans = f'<div class="a">{html.escape(_answer(key, answers))}</div>' if state == "done" else ""
         rows.append(f'<li class="{state}"><span class="n">{mark}</span><div><div class="t">{SIDE_LABEL[key]}</div>{ans}</div></li>')
     with st.container(key="ob-side"):
-        st.html(f'<img class="ob-logo" src="/app/static/logo.svg" alt="BodySync"><div class="ob-kick">{kicker}</div>'
+        st.html(f'<img class="ob-logo" src="app/static/logo.svg" alt="BodySync"><div class="ob-kick">{kicker}</div>'
                 f'<ol class="ob-steps" aria-label="Setup steps">{"".join(rows)}</ol>')
 
 

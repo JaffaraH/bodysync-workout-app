@@ -208,7 +208,7 @@ LANDING_CSS = """
 </style>
 """.replace("__G__", GOOGLE_G)
 
-LOGO_HTML = '<img class="sp-logo" src="/app/static/logo.svg" alt="BodySync">'
+LOGO_HTML = '<img class="sp-logo" src="app/static/logo.svg" alt="BodySync">'
 
 # Three full-size pictures, never cropped. Credited behind a small Credits link (and on the You page, About).
 _SLIDE_DATA = [
