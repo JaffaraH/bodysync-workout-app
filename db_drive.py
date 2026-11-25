@@ -27,16 +27,24 @@ UPLOAD = "https://www.googleapis.com/upload/drive/v3"
 KEY = "_drive"
 
 
-class DriveAuthError(Exception):
-    """The Google connection is missing or expired: ask the person to sign in again."""
-
-
 class DriveError(Exception):
-    pass
+    """Anything that stops the app talking to the person's Drive (the kinds below are all of this type)."""
+
+
+class DriveAuthError(DriveError):
+    """The Google connection is missing or expired: ask the person to sign in again."""
 
 
 class DriveFullError(DriveError):
     """The person's Google storage is full, so nothing can be saved until they free up space."""
+
+
+class DriveSetupError(DriveError):
+    """The Google Drive API is switched off in the app owner's Google Cloud project (a one-time setup step)."""
+
+
+class DriveScopeError(DriveError):
+    """The person didn't allow BodySync to use its own hidden folder in their Drive."""
 
 
 # --- talking to Google ---------------------------------------------------------------------
@@ -51,18 +59,27 @@ def _token():
         raise DriveAuthError("No Google access token. Please sign in again.") from e
 
 
-def _reasons(r):
-    """The error reasons Google gave (for example 'storageQuotaExceeded'), or [] if the answer wasn't readable."""
+def _problem(r):
+    """What Google said went wrong: (reasons such as 'storageQuotaExceeded', its message), or ([], '') if unreadable."""
     try:
-        return [e.get("reason") for e in r.json()["error"]["errors"]]
+        err = r.json()["error"]
     except Exception:
-        return []
+        return [], ""
+    reasons = [e.get("reason") for e in err.get("errors") or [] if isinstance(e, dict)]
+    reasons += [d.get("reason") for d in err.get("details") or [] if isinstance(d, dict)]  # the newer error format
+    return [x for x in reasons if x], str(err.get("message") or "")[:400]
 
 
 def _req(method, url, headers=None, **kw):
     r = requests.request(method, url, headers={"Authorization": f"Bearer {_token()}", **(headers or {})}, timeout=20, **kw)
-    if r.status_code == 403 and "storageQuotaExceeded" in _reasons(r):  # full Drive, not an expired sign-in
-        raise DriveFullError("Your Google storage is full.")
+    if r.status_code == 403:  # not every 403 means 'sign in again': say what Google actually said
+        reasons, message = _problem(r)
+        if "storageQuotaExceeded" in reasons:
+            raise DriveFullError("Your Google storage is full.")
+        if {"accessNotConfigured", "SERVICE_DISABLED"} & set(reasons):
+            raise DriveSetupError(message or "The Google Drive API is turned off for this app.")
+        if {"insufficientPermissions", "ACCESS_TOKEN_SCOPE_INSUFFICIENT"} & set(reasons):
+            raise DriveScopeError(message or "BodySync wasn't allowed to use your Drive.")
     if r.status_code in (401, 403):
         raise DriveAuthError("Your Google connection expired. Please sign in again.")
     if r.status_code >= 400:

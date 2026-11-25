@@ -161,6 +161,41 @@ def test_full_drive_is_not_an_expired_sign_in():
     assert not d.has_unsaved(), "once there is space again, the next save goes through"
 
 
+def test_each_google_refusal_gets_its_own_message():
+    """403 accessNotConfigured (API off), insufficient scope, and a plain expired sign-in are three different problems."""
+    global sess
+    drive = FakeDrive()
+    sess = {}
+    connect(drive)
+
+    def answer(status, reason, message=""):
+        body = {"error": {"message": message, "errors": [{"reason": reason}]}}
+        d.requests.request = lambda *a, **k: SimpleNamespace(status_code=status, json=lambda: body)
+
+    cases = [(403, "accessNotConfigured", "Google Drive API has not been used in project 1 before or it is disabled.", d.DriveSetupError),
+             (403, "insufficientPermissions", "Insufficient Permission", d.DriveScopeError),
+             (403, "storageQuotaExceeded", "", d.DriveFullError),
+             (401, "authError", "", d.DriveAuthError),
+             (403, "forbidden", "", d.DriveAuthError)]
+    for status, reason, message, expected in cases:
+        answer(status, reason, message)
+        try:
+            d._req("GET", "https://example.test")
+            raise AssertionError(f"{reason} should raise")
+        except d.DriveError as e:
+            assert type(e) is expected, (reason, type(e).__name__)
+            if message:
+                assert message in str(e), "Google's own words are kept, so the owner sees what to turn on"
+    # the newer error format keeps the reason in 'details'
+    d.requests.request = lambda *a, **k: SimpleNamespace(status_code=403, json=lambda: {"error": {
+        "message": "API disabled", "details": [{"reason": "SERVICE_DISABLED"}]}})
+    try:
+        d._req("GET", "https://example.test")
+        raise AssertionError("should raise")
+    except d.DriveSetupError:
+        pass
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

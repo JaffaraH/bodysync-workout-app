@@ -21,12 +21,21 @@ st.set_page_config(page_title="BodySync", page_icon=":material/fitness_center:",
 ui.inject_css()
 
 try:  # only exists in Google/Drive mode
-    from db_drive import DriveAuthError, DriveFullError
+    from db_drive import DriveAuthError, DriveError, DriveFullError, DriveScopeError, DriveSetupError
 except Exception:  # pragma: no cover
-    class DriveAuthError(Exception):
+    class DriveError(Exception):
         pass
 
-    class DriveFullError(Exception):
+    class DriveAuthError(DriveError):
+        pass
+
+    class DriveFullError(DriveError):
+        pass
+
+    class DriveScopeError(DriveError):
+        pass
+
+    class DriveSetupError(DriveError):
         pass
 
 
@@ -47,6 +56,31 @@ def _flush():
         st.toast(f"Couldn't save just now ({type(e).__name__}). We'll try again on your next tap.", icon=":material/warning:")
 
 
+def _drive_blocked(e):
+    """Google refused the very first request: say exactly why and what to do, instead of crashing with a redacted error."""
+    st.title("BodySync can't reach your Google Drive yet")
+    if isinstance(e, DriveSetupError):
+        st.error("The Google Drive API is switched off for this app's Google Cloud project. It is a one-time setup step for "
+                 "whoever runs this copy of BodySync (turn on 'Google Drive API' in the Google Cloud console). Nothing is wrong "
+                 "with your account.")
+    elif isinstance(e, DriveScopeError):
+        st.error("BodySync wasn't given permission to keep your workouts in its own hidden folder in your Google Drive. Sign in "
+                 "again, and leave the Drive box ticked when Google asks.")
+    elif isinstance(e, DriveFullError):
+        st.error("Your Google storage is full, so BodySync can't open or save your workouts. Free up some space (empty the "
+                 "trash too) at [drive.google.com/settings/storage](https://drive.google.com/settings/storage), then try again.")
+    elif isinstance(e, DriveAuthError):
+        st.error("Google didn't accept the sign-in. Sign in again to reconnect.")
+    else:
+        st.error("Google Drive didn't answer as expected. Try again in a minute.")
+    if str(e):
+        st.caption(f"Google said: {e}")
+    a, b = st.columns(2)
+    a.button("Try again", key="drive_retry", width="stretch", icon=":material/refresh:")
+    b.button("Sign in again", key="drive_login", type="primary", width="stretch", on_click=st.login, icon=":material/login:")
+    st.stop()
+
+
 def main():
     if st.query_params.get("preview") == "signin":  # lets you see the sign-in page without signing out
         st.navigation(
@@ -64,12 +98,15 @@ def main():
 
     username, display = auth.identity()
     st.session_state.update(username=username, display=display, logged_in=True)
-    exercise_data.set_custom(session_data.settings(username).get("custom_exercises"))  # your own exercises
-    if "sess" not in st.session_state and not st.session_state.get("_live_checked"):
-        st.session_state["_live_checked"] = True  # once per visit: bring back a workout left unfinished
-        live = session_data.load_live(username)
-        if live:
-            st.session_state["sess"] = live
+    try:  # the first Google Drive call: if Google refuses it, say why instead of crashing
+        exercise_data.set_custom(session_data.settings(username).get("custom_exercises"))  # your own exercises
+        if "sess" not in st.session_state and not st.session_state.get("_live_checked"):
+            st.session_state["_live_checked"] = True  # once per visit: bring back a workout left unfinished
+            live = session_data.load_live(username)
+            if live:
+                st.session_state["sess"] = live
+    except DriveError as e:
+        _drive_blocked(e)
     pages = {}
 
     def home():
