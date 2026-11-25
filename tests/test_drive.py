@@ -123,6 +123,44 @@ def test_unsaved_data_survives_a_failed_upload():
     assert not d.has_unsaved() and len(drive.files) == 1
 
 
+def test_full_drive_is_not_an_expired_sign_in():
+    """A full Google Drive answers 403 storageQuotaExceeded: say so, don't ask the person to sign in again."""
+    global sess
+    drive = FakeDrive()
+    sess = {}
+    connect(drive)
+    u = "me@example.com"
+    d.set_pref(u, "unit", "kg")
+    real = drive.request
+
+    def full(method, url, **kw):
+        if method in ("POST", "PATCH"):
+            body = {"error": {"errors": [{"reason": "storageQuotaExceeded"}]}}
+            return SimpleNamespace(status_code=403, json=lambda: body)
+        return real(method, url, **kw)
+
+    d.requests.request = full
+    try:
+        d.flush()
+        raise AssertionError("a full Drive should raise")
+    except d.DriveFullError:
+        pass
+    assert d.has_unsaved(), "nothing is lost: it stays marked unsaved so the next tap retries"
+
+    def expired(method, url, **kw):  # a plain 403 is still 'sign in again'
+        return SimpleNamespace(status_code=403, json=lambda: {"error": {"errors": [{"reason": "forbidden"}]}})
+
+    d.requests.request = expired
+    try:
+        d.flush()
+        raise AssertionError("an expired sign-in should raise")
+    except d.DriveAuthError:
+        pass
+    d.requests.request = real
+    d.flush()
+    assert not d.has_unsaved(), "once there is space again, the next save goes through"
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

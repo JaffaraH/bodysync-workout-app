@@ -288,6 +288,7 @@ INTRO_CSS = """<style>
   .st-key-ob-intro > .stElementContainer:has(.bs-ob-intro-h) { margin-top: 1.2rem; }
   .st-key-ob-intro .bs-ob-intro-h { text-align: center; }
   .st-key-ob-intro .bs-ob-sub { text-align: center; }
+  .st-key-ob-intro .st-key-ob-foot { width: 100%; max-width: min(100%, 420px); margin-left: auto; margin-right: auto; }  /* buttons centered under the text */
   .st-key-ob-intro > [data-testid="stLayoutWrapper"]:has(.st-key-ob-foot) { margin-top: auto; }  /* buttons at the bottom */
 }
 @media (prefers-reduced-motion: reduce) {

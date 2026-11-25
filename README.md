@@ -64,7 +64,6 @@ for t in training skills drive db_contract research plan protein custom ai targe
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): how the code is organised, and how to add workouts, exercises and skills.
 - [DEPLOY.md](DEPLOY.md): host your own copy with Google sign-in.
 - [PRIVACY.md](PRIVACY.md): what is stored and where.
-- [docs/TODO.md](docs/TODO.md): what is built but not tested yet.
 - [docs/RESEARCH_AUDIT.md](docs/RESEARCH_AUDIT.md) and [research.json](research.json): the research behind each recommendation.
 
 ## Credits

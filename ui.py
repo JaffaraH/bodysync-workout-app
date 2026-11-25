@@ -708,9 +708,17 @@ def tap_row(key, img, title, detail, kicker="", kicker_state="", action=None, ic
     return opened, acted
 
 
-def back_to_you(pages):
-    """Pages opened from the You tab (Progress, Exercise library, Nutrition, FitBuddy) get a clear way back."""
-    if st.button("You", icon=":material/arrow_back:", key="back_to_you"):
+def back_to_you(pages, forms=()):
+    """Pages opened from the You tab (Progress, Exercise library, Nutrition, FitBuddy) get a clear way back.
+    forms: session keys of forms that can be open on the page (for example 'ex_new'). While one is open, Back closes
+    it and stays on the page, so it never throws you out to You."""
+    open_forms = [k for k in forms if st.session_state.get(k)]
+    if st.button("Back" if open_forms else "You", icon=":material/arrow_back:", key="back_to_you"):
+        if open_forms:
+            for k in open_forms:
+                st.session_state[k] = False
+                st.session_state[k[: -len("_new")] + "_editing"] = None
+            st.rerun()
         st.switch_page(pages["profile"])
 
 

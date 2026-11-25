@@ -35,6 +35,10 @@ class DriveError(Exception):
     pass
 
 
+class DriveFullError(DriveError):
+    """The person's Google storage is full, so nothing can be saved until they free up space."""
+
+
 # --- talking to Google ---------------------------------------------------------------------
 def _session():
     return st.session_state
@@ -47,8 +51,18 @@ def _token():
         raise DriveAuthError("No Google access token. Please sign in again.") from e
 
 
+def _reasons(r):
+    """The error reasons Google gave (for example 'storageQuotaExceeded'), or [] if the answer wasn't readable."""
+    try:
+        return [e.get("reason") for e in r.json()["error"]["errors"]]
+    except Exception:
+        return []
+
+
 def _req(method, url, headers=None, **kw):
     r = requests.request(method, url, headers={"Authorization": f"Bearer {_token()}", **(headers or {})}, timeout=20, **kw)
+    if r.status_code == 403 and "storageQuotaExceeded" in _reasons(r):  # full Drive, not an expired sign-in
+        raise DriveFullError("Your Google storage is full.")
     if r.status_code in (401, 403):
         raise DriveAuthError("Your Google connection expired. Please sign in again.")
     if r.status_code >= 400:

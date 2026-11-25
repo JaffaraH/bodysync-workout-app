@@ -85,13 +85,46 @@ import training as _training  # noqa: E402
 _training.EXTRA_HOLDS = _custom_holds
 
 
-def make_custom(name, muscle, equipment, hold, steps, photos):
+def _gif_demo(f):
+    """An uploaded animated GIF as a small animated WebP (base64 text), or None when it isn't animated."""
+    import base64
+    import io
+
+    img = Image.open(f)
+    n = getattr(img, "n_frames", 1)
+    if n < 2:
+        return None
+    step = -(-n // 30)  # at most 30 frames, so it stays small in the person's storage
+    frames, ms = [], []
+    for i in range(0, n, step):
+        img.seek(i)
+        fr = img.convert("RGB")
+        fr.thumbnail((360, 360))
+        frames.append(fr)
+        ms.append(max(40, int(img.info.get("duration", 100))) * step)
+    buf = io.BytesIO()
+    frames[0].save(buf, "WEBP", save_all=True, append_images=frames[1:], duration=ms, loop=0, quality=60)
+    if buf.tell() > 900_000:
+        raise ValueError("That GIF is too big to save. Try a shorter one, or a smaller picture.")
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def make_custom(name, muscle, equipment, hold, steps, photos, keep_demo=None):
     """A custom exercise in the same shape as the database's. photos: up to two images (start, finish): uploaded
     files, or photos it already had (base64 text, when editing)."""
     import base64
     import io
     import re
 
+    files = [f for f in photos if not isinstance(f, str)]
+    demo = None
+    if files:  # a new upload: an animated GIF stands alone as the demo, and its first frame is the still picture
+        demo = _gif_demo(files[0])
+        files[0].seek(0)
+        if demo:
+            photos = [files[0]]
+    elif keep_demo:  # editing without new pictures keeps the GIF it had
+        demo = keep_demo
     pics = []
     for f in photos[:2]:
         if isinstance(f, str):  # a photo it already had (stored as text)
@@ -106,7 +139,7 @@ def make_custom(name, muscle, equipment, hold, steps, photos):
     return {"name": name, "id": f"custom-{slug}", "custom": True, "hold": bool(hold),
             "primaryMuscles": [muscle] if muscle else [], "secondaryMuscles": [], "equipment": equipment or "body only",
             "category": "strength", "level": "beginner",
-            "instructions": [x.strip() for x in steps.splitlines() if x.strip()], "photos": pics, "images": []}
+            "instructions": [x.strip() for x in steps.splitlines() if x.strip()], "photos": pics, "images": [], **({"demo": demo} if demo else {})}
 
 
 def _custom_media(exercise, size=None, labels=False):
@@ -117,9 +150,12 @@ def _custom_media(exercise, size=None, labels=False):
     pics = exercise.get("photos") or []
     if not pics:
         return None
-    key = (exercise["id"], size, labels, len(pics))
+    key = (exercise["id"], size, labels, len(pics), bool(exercise.get("demo")))
     cache = st.session_state.setdefault("_custom_media", {})
     if key in cache:
+        return cache[key]
+    if exercise.get("demo") and not size:  # an uploaded GIF plays as it is (small pictures use its first frame)
+        cache[key] = "data:image/webp;base64," + exercise["demo"]
         return cache[key]
     imgs = [Image.open(io.BytesIO(base64.b64decode(p))).convert("RGB") for p in pics]
     imgs = [_square(im, size) for im in imgs] if size else [im.resize(imgs[0].size) for im in imgs]

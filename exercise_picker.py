@@ -115,12 +115,14 @@ def create_form(username, key, exercises):
         st.text_area("How to do it (one step per line)", key=f"{key}_nsteps", height=90,
                      placeholder="Sit facing the machine...\nPull the handles to your chest...\nLower slowly.")
         if editing:
-            st.caption("Photos: upload new ones to replace them. If it has one photo now, adding one more makes it the "
+            st.caption("Pictures: upload new ones to replace them. If it has one photo now, adding one more makes it the "
                        "finish position, so the demo moves.")
-        st.file_uploader("Photos: the start position, then the finish (optional)", type=["jpg", "jpeg", "png", "webp"],
-                         accept_multiple_files=True, key=f"{key}_nphotos",
-                         help="Two photos become a moving demo, like every other exercise. They're saved only "
-                              "with your data, never on a public link.")
+        st.markdown("**Pictures (optional)**")
+        st.caption("Two photos make a moving demo: first where you start, then where you finish. Or upload one GIF and it "
+                   "plays on its own.")
+        st.file_uploader("Pictures: two photos (start, then finish), or one GIF", type=["jpg", "jpeg", "png", "webp", "gif"],
+                         accept_multiple_files=True, key=f"{key}_nphotos", label_visibility="collapsed",
+                         help="Saved only with your data, never on a public link. Keep GIFs short, a few seconds.")
         a, b = st.columns(2)
         a.form_submit_button("Cancel", width="stretch",
                              on_click=lambda: st.session_state.update({f"{key}_new": False, f"{key}_editing": None}))
@@ -151,14 +153,20 @@ def _save_custom(username, key):
         return
     new = list(st.session_state.get(f"{key}_nphotos") or [])
     old_photos = (find_exercise(editing) or {}).get("photos") or [] if editing else []
+    old_demo = (find_exercise(editing) or {}).get("demo") if editing else None
+    if len(new) > 1 and any(getattr(f, "name", "").lower().endswith(".gif") for f in new):
+        new = [next(f for f in new if getattr(f, "name", "").lower().endswith(".gif"))]  # a GIF stands alone
     photos = (old_photos + new if len(old_photos) == 1 and len(new) == 1  # one more photo: the finish position
               else new or old_photos)
     try:
         ex = make_custom(name, st.session_state.get(f"{key}_nmus"), st.session_state.get(f"{key}_neq"),
                          st.session_state.get(f"{key}_nkind") == "Seconds", st.session_state.get(f"{key}_nsteps") or "",
-                         photos)
+                         photos, keep_demo=None if new else old_demo)
     except OSError:
-        st.session_state[f"{key}_nerr"] = "One of the photos couldn't be read. Try a JPG or PNG."
+        st.session_state[f"{key}_nerr"] = "One of the pictures couldn't be read. Try a JPG, PNG or GIF."
+        return
+    except ValueError as e:  # a GIF that is too big
+        st.session_state[f"{key}_nerr"] = str(e)
         return
     items = [e for e in custom_list() if e["name"] not in (name, editing)] + [ex]
     session_data.save_settings(username, custom_exercises=items)

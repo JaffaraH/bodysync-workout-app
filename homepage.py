@@ -21,9 +21,12 @@ st.set_page_config(page_title="BodySync", page_icon=":material/fitness_center:",
 ui.inject_css()
 
 try:  # only exists in Google/Drive mode
-    from db_drive import DriveAuthError
+    from db_drive import DriveAuthError, DriveFullError
 except Exception:  # pragma: no cover
     class DriveAuthError(Exception):
+        pass
+
+    class DriveFullError(Exception):
         pass
 
 
@@ -36,6 +39,10 @@ def _flush():
         flush()
     except DriveAuthError:
         auth.reconnect_notice(st.login)
+    except DriveFullError:
+        st.warning("Your Google storage is full, so BodySync couldn't save your latest changes. Free up some space (empty the "
+                   "trash too) at [drive.google.com/settings/storage](https://drive.google.com/settings/storage), then tap "
+                   "anything here and it will try again. Nothing is lost while this page stays open.", icon=":material/cloud_off:")
     except Exception as e:
         st.toast(f"Couldn't save just now ({type(e).__name__}). We'll try again on your next tap.", icon=":material/warning:")
 

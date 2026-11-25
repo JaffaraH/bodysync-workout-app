@@ -865,7 +865,7 @@ def editor_view(username, lad):
     st.html(EDITOR_CSS)
     st.button("Back", icon=":material/arrow_back:", key="sk_ed_back", on_click=_leave_editor)
     st.title("Edit your skill" if lad else "Create your own skill")
-    st.caption("Three parts: a name, the steps from easiest to the goal, and (optional) drills you do every practice. "
+    st.caption("Three parts: a name, (optional) drills you do before every practice, and the steps from easiest to the goal. "
                "You can change any of it later.")
     d = _draft(lad)
     lid = d["id"]
@@ -878,18 +878,18 @@ def editor_view(username, lad):
     if lad and lad.get("photo") and not photo:
         st.image(_image_bytes(lad["photo"]), width=140)
 
+    st.subheader("Drills (optional)", anchor=False)
+    st.caption("Done before your step in every practice, like the stretches that open your hips before a split.")
+    for n, row in enumerate(d["drills"]):
+        _row_editor("drills", n, row, len(d["drills"]))
+    st.button("Add a drill", icon=":material/add:", key="sk_add_drill", on_click=_add_row, args=("drills",), width="stretch")
+
     st.subheader("Steps", anchor=False)
     st.caption("Start with something you can already do, end with the goal. Reps or seconds, how many sets, and the target "
                f"for each set. Hit every set's target in {sk.CLEARS_NEEDED} practices in a row to move up.")
     for n, row in enumerate(d["steps"]):
         _row_editor("steps", n, row, len(d["steps"]))
     st.button("Add a step", icon=":material/add:", key="sk_add_step", on_click=_add_row, args=("steps",), width="stretch")
-
-    st.subheader("Drills (optional)", anchor=False)
-    st.caption("Done before your step in every practice, like the stretches that open your hips before a split.")
-    for n, row in enumerate(d["drills"]):
-        _row_editor("drills", n, row, len(d["drills"]))
-    st.button("Add a drill", icon=":material/add:", key="sk_add_drill", on_click=_add_row, args=("drills",), width="stretch")
 
     names = [(st.session_state.get(f"sknm-{r['uid']}") or "").strip() for r in d["steps"]]
     if any(names):
