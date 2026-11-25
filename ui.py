@@ -715,9 +715,14 @@ def back_to_you(pages, forms=()):
     open_forms = [k for k in forms if st.session_state.get(k)]
     if st.button("Back" if open_forms else "You", icon=":material/arrow_back:", key="back_to_you"):
         if open_forms:
+            import bulk_add
+
             for k in open_forms:
+                base = k.rsplit("_", 1)[0]  # "ex_new" and "ex_bulk" both belong to "ex"
                 st.session_state[k] = False
-                st.session_state[k[: -len("_new")] + "_editing"] = None
+                st.session_state[f"{base}_editing"] = None
+                if k.endswith("_bulk"):
+                    bulk_add.close(base)
             st.rerun()
         st.switch_page(pages["profile"])
 

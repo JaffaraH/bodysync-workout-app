@@ -11,7 +11,7 @@ SECTIONS = ["Explore", "Saved", "Yours"]
 
 
 def workouts_page(username, pages):
-    ui.back_to_you(pages, forms=("ex_new", "yc_new"))  # Back closes an open create form first
+    ui.back_to_you(pages, forms=("ex_new", "yc_new", "ex_bulk", "yc_bulk"))  # Back closes an open create form first
     st.title("Exercise library")
     st.caption("Save keeps an exercise here under Saved (and in Filters > Saved only when you build a playlist). "
                "Add to playlist puts it in one of your playlists in Library.")

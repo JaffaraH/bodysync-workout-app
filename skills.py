@@ -75,7 +75,16 @@ def _image_bytes(data_uri):
 def _shrink(upload, size=720):
     """Your own picture, resized to a phone-friendly WebP so it fits in your private storage."""
     from PIL import Image
+    from exercise_data import _gif_demo
 
+    try:  # an animated GIF stays animated (small); if it is too big, its first picture is used
+        demo = _gif_demo(upload)
+    except ValueError:
+        demo = None
+        st.toast("That GIF is too big, so its first picture is used.", icon=":material/info:")
+    upload.seek(0)
+    if demo:
+        return "data:image/webp;base64," + demo
     im = Image.open(upload).convert("RGB")
     im.thumbnail((size, size))
     buf = io.BytesIO()
@@ -85,8 +94,8 @@ def _shrink(upload, size=720):
 
 def _media(item, lad=None):
     """Picture for a step or drill: your own photo, a hand-picked clip, the library demo, then the skill cover."""
-    if item.get("photo"):
-        return ("bytes", _image_bytes(item["photo"]))
+    if item.get("photo"):  # shown as an <img>, so a GIF keeps moving
+        return ("url", item["photo"])
     mine = skill_media.clip(item) if item.get("id") and not (lad or {}).get("custom") else None
     if mine:
         return ("url", mine)
@@ -790,7 +799,7 @@ def _row_editor(group, n, row, total):
         if group == "steps" and row.get("photo"):
             st.caption("Has your picture.")
         if group == "steps":
-            st.file_uploader("Picture for this step (optional)", type=["png", "jpg", "jpeg", "webp"], key=f"skph-{u}")
+            st.file_uploader("Picture or GIF for this step (optional)", type=["png", "jpg", "jpeg", "webp", "gif"], key=f"skph-{u}")
             _options_editor(row)
 
 
@@ -861,6 +870,43 @@ def _collect(group, rows):
     return out
 
 
+def _steps_from_pictures(d):
+    """Pick several pictures or GIFs and get one step per picture, in file-name order (easiest first)."""
+    import bulk_add
+
+    key = f"sk_bulk_{d['id']}_{st.session_state.get('sk_bulk_n', 0)}"
+    with st.expander("Add many steps from pictures", icon=":material/photo_library:"):
+        st.caption("Pick several pictures or GIFs. Each one becomes a step, in file-name order (step 2 comes before step 10). "
+                   "Use Up to change the order, and rename each step and set its target after.")
+        files = st.file_uploader("Pictures or GIFs for the steps", type=bulk_add.TYPES, accept_multiple_files=True, key=key,
+                                 label_visibility="collapsed")
+        st.button(f"Make {len(files)} steps" if files else "Make steps", key="sk_bulk_go", type="primary", width="stretch",
+                  disabled=not files, on_click=_make_steps, args=(key,))
+
+
+def _make_steps(key):
+    import bulk_add
+
+    ss = st.session_state
+    d = ss["sk_draft"]
+    files = sorted(ss.get(key) or [], key=lambda f: bulk_add.natural_key(f.name))[: bulk_add.MAX_FILES]
+    # blank rows (the empty starter step) make way; anything you already wrote or pictured stays
+    keep = [r for r in d["steps"] if (ss.get(f"sknm-{r['uid']}", r.get("name")) or "").strip() or r.get("photo")]
+    rows, bad = [], 0
+    for i, f in enumerate(files, start=len(keep) + 1):
+        try:
+            photo = _shrink(f)
+        except OSError:
+            bad += 1
+            continue
+        rows.append({"uid": uuid.uuid4().hex[:6], "name": bulk_add.guess_name(f.name) or f"Step {i}", "kind": "reps",
+                     "sets": 3, "target": 8, "photo": photo})
+    d["steps"] = keep + rows
+    ss["sk_bulk_n"] = ss.get("sk_bulk_n", 0) + 1  # a fresh, empty uploader
+    st.toast(f"Made {len(rows)} step{'s' if len(rows) != 1 else ''}. Rename each one and set its target."
+             + (f" {bad} couldn't be read." if bad else ""), icon=":material/check_circle:")
+
+
 def editor_view(username, lad):
     st.html(EDITOR_CSS)
     st.button("Back", icon=":material/arrow_back:", key="sk_ed_back", on_click=_leave_editor)
@@ -887,6 +933,7 @@ def editor_view(username, lad):
     st.subheader("Steps", anchor=False)
     st.caption("Start with something you can already do, end with the goal. Reps or seconds, how many sets, and the target "
                f"for each set. Hit every set's target in {sk.CLEARS_NEEDED} practices in a row to move up.")
+    _steps_from_pictures(d)
     for n, row in enumerate(d["steps"]):
         _row_editor("steps", n, row, len(d["steps"]))
     st.button("Add a step", icon=":material/add:", key="sk_add_step", on_click=_add_row, args=("steps",), width="stretch")

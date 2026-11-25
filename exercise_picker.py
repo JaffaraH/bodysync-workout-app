@@ -97,9 +97,16 @@ def describe(e):
 def create_form(username, key, exercises):
     """'Create your own exercise': name, main muscle, equipment, reps or seconds, steps, and up to two photos
     (start, finish), which become the same labelled moving demo as every other exercise."""
+    import bulk_add
+
+    if st.session_state.get(f"{key}_bulk"):  # "Add many at once": one card per picture
+        bulk_add.flow(username, key, exercises)
+        return
     if not st.session_state.get(f"{key}_new"):
         st.button("Create your own exercise", icon=":material/add_circle:", key=f"{key}_newbtn", type="tertiary",
                   on_click=lambda: st.session_state.update({f"{key}_new": True, f"{key}_editing": None}))
+        st.button("Add many at once", icon=":material/library_add:", key=f"{key}_bulkbtn", type="tertiary",
+                  on_click=bulk_add.start, args=(key,), help="Pick several pictures or GIFs: each becomes its own exercise")
         return
     editing = st.session_state.get(f"{key}_editing")
     muscles = _options([e for e in exercises if not e.get("custom")], "primaryMuscles")
